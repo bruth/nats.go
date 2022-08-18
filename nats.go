@@ -1087,6 +1087,32 @@ func UserCredentials(userOrChainedFile string, seedFiles ...string) Option {
 	return UserJWT(userCB, sigCB)
 }
 
+// UserCredentialsContents is a convenience function that takes
+// the contents of a user credentials file and extracts the
+// JWT and user's private NKey seed.
+func UserCredentialsContents(contents []byte) Option {
+	userCB := func() (string, error) {
+		jwt, err := nkeys.ParseDecoratedJWT(contents)
+		if err != nil {
+			return "", fmt.Errorf("unable to extract jwt from creds: %v", err)
+		}
+		return jwt, nil
+	}
+
+	sigCB := func(nonce []byte) ([]byte, error) {
+		kp, err := nkeys.ParseDecoratedUserNKey(contents)
+		if err != nil {
+			return nil, fmt.Errorf("unable to extract user keypair from creds: %v", err)
+		}
+		defer kp.Wipe()
+
+		sig, _ := kp.Sign(nonce)
+		return sig, nil
+	}
+
+	return UserJWT(userCB, sigCB)
+}
+
 // UserJWTAndSeed is a convenience function that takes the JWT and seed
 // values as strings.
 func UserJWTAndSeed(jwt string, seed string) Option {
